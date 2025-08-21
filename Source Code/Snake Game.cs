@@ -441,49 +441,7 @@ namespace SnakeGameAI {
                 isRunning = true;
             }
 
-            /*public double[] GetInputs() {
-                List<double> inputs = new();
-
-                var head = snake.body[0];
-                Vector2 dir = snake.direction;
-                Vector2 left = new Vector2(-dir.Y, dir.X);     // rotate left
-                Vector2 right = new Vector2(dir.Y, -dir.X);    // rotate right
-
-                int maxSteps = maxStepsWithoutFood + (score * 8);
-                int stepsLeft = maxSteps - stepsSinceLastFood;
-
-                // Normalize direction to [-1, 1]
-                inputs.Add(dir.X);
-                inputs.Add(dir.Y);
-
-                // Danger ahead
-                inputs.Add(IsCollision(head + dir) ? 1.0 : 0.0);
-                // Danger left
-                inputs.Add(IsCollision(head + left) ? 1.0 : 0.0);
-                // Danger right
-                inputs.Add(IsCollision(head + right) ? 1.0 : 0.0);
-
-                var foodPos = food.position;
-                Vector2 toFood = Vector2.Normalize(foodPos - head);
-
-                // Food direction relative to snake
-                inputs.Add(Vector2.Dot(dir, toFood));     // Ahead
-                inputs.Add(Vector2.Dot(left, toFood));   // Left
-                inputs.Add(Vector2.Dot(right, toFood)); // Right
-
-                // Normalized length of the snake
-                inputs.Add((double)snake.body.Count / (cellCount * cellCount));
-
-                // Global food direction (absolute)
-                inputs.Add(foodPos.Y < head.Y ? 1.0 : 0.0);     // Food is up
-                inputs.Add(foodPos.Y > head.Y ? 1.0 : 0.0);    // Food is down
-                inputs.Add(foodPos.X < head.X ? 1.0 : 0.0);   // Food is left
-                inputs.Add(foodPos.X > head.X ? 1.0 : 0.0);  // Food is right
-
-                return inputs.ToArray();
-            }*/
-
-            /*public double[] GetInputs() {
+            public double[] GetInputs() {
                 List<double> inputs = new();
 
                 var head = snake.body[0];
@@ -525,7 +483,7 @@ namespace SnakeGameAI {
                     double bodyVision = 0;
                     for(int step = 1;step <= maxVision;step++) {
                         var check = head + visionDir * step;
-                        if(IsOutOfBounds(check))
+                        if(IsCollision(check))
                             break;
 
                         if(snake.body.Contains(check)) {
@@ -543,82 +501,7 @@ namespace SnakeGameAI {
                 inputs.Add(foodPos.X > head.X ? 1.0 : 0.0); // Food is right
 
                 return inputs.ToArray();
-            }*/
-
-            public double[] GetInputs() {
-                List<double> inputs = new();
-
-                Vector2 head = snake.body[0];
-                Vector2 dir = snake.direction;
-                Vector2 left = new Vector2(-dir.Y, dir.X);
-                Vector2 right = new Vector2(dir.Y, -dir.X);
-
-                // ==== 1. Ray-based vision: 8 directions × 3 object types (food, body, wall) ====
-                Vector2[] directions = new Vector2[] {
-                    new Vector2(0, -1),  // Up
-                    new Vector2(1, -1),  // Up-Right
-                    new Vector2(1, 0),   // Right
-                    new Vector2(1, 1),   // Down-Right
-                    new Vector2(0, 1),   // Down
-                    new Vector2(-1, 1),  // Down-Left
-                    new Vector2(-1, 0),  // Left
-                    new Vector2(-1, -1)  // Up-Left
-                };
-
-                int visionRange = 10;
-                foreach(var dirVec in directions) {
-                    bool seenFood = false, seenBody = false, seenWall = false;
-
-                    for(int dist = 1;dist <= visionRange;dist++) {
-                        Vector2 pos = head + dirVec * dist;
-
-                        if(!IsInsideGrid(pos)) {
-                            seenWall = true;
-                            break;
-                        }
-
-                        if(!seenFood && food.position == pos)
-                            seenFood = true;
-
-                        if(!seenBody && snake.body.Contains(pos))
-                            seenBody = true;
-
-                        if(seenFood && seenBody)
-                            break;
-                    }
-
-                    inputs.Add(seenFood ? 1.0 : 0.0);
-                    inputs.Add(seenBody ? 1.0 : 0.0);
-                    inputs.Add(seenWall ? 1.0 : 0.0);
-                }
-
-                // ==== 2. Direction (X, Y) ====
-                inputs.Add(dir.X);
-                inputs.Add(dir.Y);
-
-                // ==== 3. Danger Forward / Left / Right ====
-                inputs.Add(IsCollision(head + dir) ? 1.0 : 0.0);     // Danger forward
-                inputs.Add(IsCollision(head + left) ? 1.0 : 0.0);    // Danger left
-                inputs.Add(IsCollision(head + right) ? 1.0 : 0.0);   // Danger right
-
-                // ==== 4. Relative Food Direction (Dot products) ====
-                Vector2 toFood = Vector2.Normalize(food.position - head);
-                inputs.Add(Vector2.Dot(dir, toFood));     // Forward
-                inputs.Add(Vector2.Dot(left, toFood));    // Left
-                inputs.Add(Vector2.Dot(right, toFood));   // Right
-
-                // ==== 5. Normalized Snake Length ====
-                inputs.Add((double)snake.body.Count / (cellCount * cellCount));
-
-                // ==== 6. Global Food Direction (Absolute) ====
-                inputs.Add(food.position.Y < head.Y ? 1.0 : 0.0); // Food Up
-                inputs.Add(food.position.Y > head.Y ? 1.0 : 0.0); // Food Down
-                inputs.Add(food.position.X < head.X ? 1.0 : 0.0); // Food Left
-                inputs.Add(food.position.X > head.X ? 1.0 : 0.0); // Food Right
-
-                return inputs.ToArray(); // Total = 37
             }
-
 
         }
     }

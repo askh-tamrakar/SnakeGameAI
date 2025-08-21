@@ -11,7 +11,7 @@ namespace SnakeGameAI {
 
     internal class Program {
         private static int populationSize = 100;
-        private static int inputSize = 37;
+        private static int inputSize = 20;
         private static int hiddenSize1 = 43;
         private static int hiddenSize2 = 24;
         private static int hiddenSize3 = 34;
