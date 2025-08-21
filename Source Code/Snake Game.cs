@@ -441,6 +441,7 @@ namespace SnakeGameAI {
                 isRunning = true;
             }
 
+            //Input generation for the neural network
             public double[] GetInputs() {
                 List<double> inputs = new();
 
