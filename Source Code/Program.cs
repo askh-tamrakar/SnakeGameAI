@@ -3,7 +3,8 @@ using Raylib_cs;
 using System.Numerics;
 using static SnakeGameAI.Snake_Game;
 using Font = Raylib_cs.Font;
-using Color = Raylib_cs.Color;
+using RayColor = Raylib_cs.Color;
+using System.Drawing;
 using Rectangle = Raylib_cs.Rectangle;
 using Image = Raylib_cs.Image;
 
@@ -30,16 +31,50 @@ namespace SnakeGameAI {
         static Random rand = new();
 
         public static Font font;
-        public static Color green => new Color(173, 204, 96, 255);
-        public static Color darkGreen => new Color(43, 51, 24, 255);
-        public static Color lightGreen => new Color(43, 75, 24, 255);
+        public static RayColor green => new RayColor(173, 204, 96, 255);
+        public static RayColor darkGreen => new RayColor(43, 51, 24, 255);
+        public static RayColor lightGreen => new RayColor(43, 75, 24, 255);
+
+        public class DualColor {
+            public string Hex { get; }
+            public RayColor Ray { get; }
+
+            public DualColor(string hex) {
+                Hex = hex;
+                var color = ColorTranslator.FromHtml(hex);
+                Ray = new RayColor(color.R, color.G, color.B, color.A);
+            }
+        }
 
         public static class AppColors {
-            public static Color forestGreen = new Color(47, 82, 73, 255);
-            public static Color jungleGreen = new Color(67, 112, 87, 255);
-            public static Color yellowPastel = new Color(151, 176, 103, 255);
-            public static Color yellowHighlight = new Color(227, 222, 97, 255);
-        }
+            // Old base colors
+            public static readonly DualColor ForestGreen = new("#2F5249");
+            public static readonly DualColor JungleGreen = new("#437057");
+            public static readonly DualColor YellowPastel = new("#97B067");
+            public static readonly DualColor YellowHighlight = new("#E3DE61");
+
+            // Palette One
+            public static readonly DualColor SageGreen = new("#99B898");
+            public static readonly DualColor PeachCream = new("#FECEA8");
+            public static readonly DualColor CoralPink = new("#FF847C");
+            public static readonly DualColor WatermelonRed = new("#E84A5F");
+            public static readonly DualColor MidnightNavy = new("#2A363B");
+
+            // Palette Two
+            public static readonly DualColor RosePink = new("#F18C8E");
+            public static readonly DualColor LightPeach = new("#F0B7A4");
+            public static readonly DualColor SoftBlush = new("#F1D1B5");
+            public static readonly DualColor OceanTeal = new("#568EA6");
+            public static readonly DualColor DeepSeaBlue = new("#305F72");
+
+            // Palette Three
+            public static readonly DualColor BrightRed = new("#EF3D59");
+            public static readonly DualColor Tangerine = new("#E17A47");
+            public static readonly DualColor GoldenYellow = new("#EFC958");
+            public static readonly DualColor AquaGreen = new("#4AB19D");
+            public static readonly DualColor StormyBlue = new("#344E5C");
+    }
+
 
         public static int cellSize => 8;
         public static int cellCount => 116;
@@ -271,8 +306,8 @@ namespace SnakeGameAI {
 
         static void DrawNeuralNetworkVisualization(Genome currentGenome) {
             Rectangle rect = new(offset - 5, offset - 5, windowDim.X - (offset + 30) + 10, cellSize * cellCount + 10);
-            Raylib.DrawRectangle((int)rect.X + 5, (int)rect.Y + 5, (int)rect.Width - 5, (int)rect.Height - 5, Color.Black);
-            Raylib.DrawRectangleLinesEx(rect, 5, Color.Red);
+            Raylib.DrawRectangle((int)rect.X + 5, (int)rect.Y + 5, (int)rect.Width - 5, (int)rect.Height - 5, RayColor.Black);
+            Raylib.DrawRectangleLinesEx(rect, 5, AppColors.BrightRed.Ray);
 
             ai_Debugger.DrawSlider();
             ai_Debugger.DrawNeuralNetwork(currentGenome, new Vector2((int)rect.X + 5, (int)rect.Y + 5), (int)rect.Width - 5, (int)rect.Height - 5);
