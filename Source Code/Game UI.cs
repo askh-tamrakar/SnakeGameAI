@@ -38,7 +38,7 @@ namespace SnakeGameAI {
             }
 
             // Draw background
-            Raylib.DrawRectangleRec(scrollRect, AppColors.forestGreen);
+            Raylib.DrawRectangleRec(scrollRect, AppColors.ForestGreen.Ray);
 
             // Clip drawing to scrollRect
             Raylib.BeginScissorMode((int)scrollRect.X, (int)scrollRect.Y, (int)scrollRect.Width, (int)scrollRect.Height);
@@ -63,11 +63,11 @@ namespace SnakeGameAI {
                 bool isHovered = Raylib.CheckCollisionPointRec(mousePos, itemRect);
                 bool isSelected = selectedIndex == i;
 
-                Color bgColor = isSelected ? AppColors.yellowHighlight :
-                                isHovered ? AppColors.jungleGreen : AppColors.forestGreen;
+                Color bgColor = isSelected ? AppColors.YellowHighlight.Ray :
+                                isHovered ? AppColors.JungleGreen.Ray : AppColors.ForestGreen.Ray;
 
-                Color textColor = isSelected ? AppColors.forestGreen :
-                                  isHovered ?  AppColors.yellowHighlight : AppColors.yellowPastel;
+                Color textColor = isSelected ? AppColors.ForestGreen.Ray :
+                                  isHovered ?  AppColors.YellowHighlight.Ray : AppColors.YellowPastel.Ray;
                 Raylib.DrawRectangleRec(itemRect, bgColor);
 
                 // Mouse Click Selection
