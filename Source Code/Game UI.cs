@@ -87,5 +87,4 @@ namespace SnakeGameAI {
             Raylib.EndScissorMode();
         }
     }
-
 }

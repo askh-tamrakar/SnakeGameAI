@@ -2,7 +2,6 @@
 using RL = Raylib_cs.Raylib;
 using MathNet.Numerics.LinearAlgebra;
 using static SnakeGameAI.Snake_Game;
-using static SnakeGameAI.Program;
 using Raylib_cs;
 
 namespace SnakeGameAI {
