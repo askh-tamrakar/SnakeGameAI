@@ -7,7 +7,7 @@ using static SnakeGameAI.Program;
 using Color = Raylib_cs.Color;
 using Rectangle = Raylib_cs.Rectangle;
 
-namespace SnakeGameAI {
+namespace SnakeGameAI { 
     public class Game_UI {
         const int offset = 25;
         const int lineThickness = 4;

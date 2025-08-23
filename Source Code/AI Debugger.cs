@@ -520,17 +520,17 @@ namespace SnakeGameAI {
                 formsPlot.Plot.YLabel("Fitness");
 
                 // change figure colors
-                formsPlot.Plot.FigureBackground.Color = ScottColor.FromHex("#181818");
-                formsPlot.Plot.DataBackground.Color = ScottColor.FromHex("#1f1f1f");
+                formsPlot.Plot.FigureBackground.Color = ScottColor.FromHex(AppColors.MidnightNavy.Hex);
+                formsPlot.Plot.DataBackground.Color = ScottColor.FromHex(AppColors.DeepSeaBlue.Hex);
 
                 // change axis and grid colors
-                formsPlot.Plot.Axes.Color(ScottColor.FromHex("#d7d7d7"));
-                formsPlot.Plot.Grid.MajorLineColor = ScottColor.FromHex("#404040");
+                formsPlot.Plot.Axes.Color(ScottColor.FromHex(AppColors.SageGreen.Hex));
+                formsPlot.Plot.Grid.MajorLineColor = ScottColor.FromHex(AppColors.SoftBlush.Hex);
 
                 // change legend colors
-                formsPlot.Plot.Legend.BackgroundColor = ScottColor.FromHex("#404040");
-                formsPlot.Plot.Legend.FontColor = ScottColor.FromHex("#d7d7d7");
-                formsPlot.Plot.Legend.OutlineColor = ScottColor.FromHex("#d7d7d7");
+                formsPlot.Plot.Legend.BackgroundColor = ScottColor.FromHex(AppColors.MidnightNavy.Hex);
+                formsPlot.Plot.Legend.FontColor = ScottColor.FromHex(AppColors.SageGreen.Hex);
+                formsPlot.Plot.Legend.OutlineColor = ScottColor.FromHex(AppColors.SageGreen.Hex);
 
                 formsPlot.Refresh();
 
@@ -597,7 +597,7 @@ namespace SnakeGameAI {
 
                     scatterRaw.LegendText = "Raw Fitness";
                     scatterRaw.LineWidth = 5;
-                    scatterRaw.Color = ScottColor.FromHex(AppColors.RosePink.Hex);
+                    scatterRaw.Color = ScottColor.FromHex(AppColors.WatermelonRed.Hex);
                     scatterRaw.MarkerSize = 2;
 
                     scatterAverage.LegendText = "Average Fitness";
@@ -698,16 +698,21 @@ namespace SnakeGameAI {
 
             // Add a visible marker at the best point (single-point scatter)
             var bestPoint = formsPlot.Plot.Add.Scatter(bestX, bestY);
-            bestPoint.MarkerColor = ScottColor.FromHex("#EFC958");
+            bestPoint.MarkerColor = ScottColor.FromHex(AppColors.Tangerine.Hex);
             bestPoint.MarkerSize = 10;
             bestPoint.MarkerShape = MarkerShape.FilledCircle;
             bestPoint.LineWidth = 0; // no line, just a point   
 
             // Add text label slightly offset (to the top-right of the marker)
             string label = $"{calloutText}\nGen {pointIndex}\nVal {bestY:F2}";
-            formsPlot.Plot.Add.Text(label, bestX + xOffset, bestY + yOffset);
+            var infoText = formsPlot.Plot.Add.Text(label, bestX + xOffset, bestY + yOffset);
+            
+            infoText.LabelBold = true;
+            infoText.LabelFontSize = 16;
+            infoText.LabelFontColor = ScottColor.FromHex(AppColors.CoralPink.Hex);
+            infoText.LabelBackgroundColor = ScottColor.FromHex(AppColors.PeachCream.Hex);
 
-           
+
             // refresh plot
             formsPlot.Plot.Axes.AutoScale(); // optional depending on whether you want autoscale
             formsPlot.Refresh();
