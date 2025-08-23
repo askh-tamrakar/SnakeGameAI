@@ -1,9 +1,5 @@
 ﻿using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
-using Raylib_cs;
-using ScottPlot;
-using System;
-using System.Collections.Generic;
 using static SnakeGameAI.Program;
 
 namespace SnakeGameAI {
