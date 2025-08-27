@@ -157,7 +157,7 @@ namespace SnakeGameAI {
             // Draw cross (two intersecting lines)
             int crossSize = 6;
             float lineThickness = 2.5f;
-            RayColor lineColor = AppColors.yellowHighlight;
+            RayColor lineColor = AppColors.YellowHighlight.Ray;
             Raylib.DrawLineEx(new Vector2((int)(bestX - crossSize), (int)(bestY - crossSize)),
                               new Vector2((int)(bestX + crossSize), (int)(bestY + crossSize)),
                               lineThickness, lineColor);
@@ -323,7 +323,7 @@ namespace SnakeGameAI {
         public void DrawNeuralNetwork(Genome genome, Vector2 origin, int width, int height) {
 
             RayColor darkGreen = new RayColor(43, 51, 24, 255);
-            RayColor nodeColor = AppColors.forestGreen;
+            RayColor nodeColor = AppColors.ForestGreen.Ray;
             RayColor connectionColor = RayColor.Gray;
 
             var input = genome.Game.GetInputs();
@@ -425,7 +425,7 @@ namespace SnakeGameAI {
                     Matrix<double> outputMatrix = OutputOfEachNeuron[l];
                     double outputOfNeuron = outputMatrix[0, n];
 
-                    Raylib.DrawTextEx(font, $"{outputOfNeuron:F2}", posOutput, scaledRadius, 0, AppColors.yellowHighlight);
+                    Raylib.DrawTextEx(font, $"{outputOfNeuron:F2}", posOutput, scaledRadius, 0, AppColors.YellowHighlight.Ray);
 
                     // Draw layer label only for top neuron
                     if(n == 0) {
@@ -438,7 +438,7 @@ namespace SnakeGameAI {
                             _ => $"L{l}"
                         };
                         int fontSize = (int)(displaySettings.FontSize * zoom);
-                        Raylib.DrawText(label, (int)(pos.X - 30 * zoom), (int)(pos.Y - 40 * zoom), fontSize, AppColors.jungleGreen);
+                        Raylib.DrawText(label, (int)(pos.X - 30 * zoom), (int)(pos.Y - 40 * zoom), fontSize, AppColors.JungleGreen.Ray);
                     }
                 }
             }
