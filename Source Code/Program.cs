@@ -73,7 +73,7 @@ namespace SnakeGameAI {
             public static readonly DualColor GoldenYellow = new("#EFC958");
             public static readonly DualColor AquaGreen = new("#4AB19D");
             public static readonly DualColor StormyBlue = new("#344E5C");
-    }
+        }
 
 
         public static int cellSize => 8;
