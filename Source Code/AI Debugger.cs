@@ -596,17 +596,17 @@ namespace SnakeGameAI {
                     }
 
                     scatterRaw.LegendText = "Raw Fitness";
-                    scatterRaw.LineWidth = 5;
+                    scatterRaw.LineWidth = 4;
                     scatterRaw.Color = ScottColor.FromHex(AppColors.WatermelonRed.Hex);
                     scatterRaw.MarkerSize = 2;
 
                     scatterAverage.LegendText = "Average Fitness";
-                    scatterAverage.LineWidth = 5;
+                    scatterAverage.LineWidth = 4;
                     scatterAverage.Color = ScottColor.FromHex(AppColors.AquaGreen.Hex);
                     scatterAverage.MarkerSize = 2;
                     
                     scatterSmoothed.LegendText = "Smoothed Fitness";
-                    scatterSmoothed.LineWidth = 5;
+                    scatterSmoothed.LineWidth = 4;
                     scatterSmoothed.Color = ScottColor.FromHex(AppColors.GoldenYellow.Hex);
                     scatterSmoothed.MarkerSize = 2;
 
@@ -672,8 +672,9 @@ namespace SnakeGameAI {
             GC.SuppressFinalize(this);
         }
 
-        public void CallOut(string calloutText, List<double> history) {
-            if(history == null || history.Count == 0)
+        public void CallOut(string calloutText, List<double> history)
+        {
+            if (history == null || history.Count == 0)
                 return;
 
             // find best point
@@ -698,7 +699,7 @@ namespace SnakeGameAI {
 
             // Add a visible marker at the best point (single-point scatter)
             var bestPoint = formsPlot.Plot.Add.Scatter(bestX, bestY);
-            bestPoint.MarkerColor = ScottColor.FromHex(AppColors.Tangerine.Hex);
+            bestPoint.MarkerColor = ScottColor.FromHex(AppColors.SoftBlush.Hex);
             bestPoint.MarkerSize = 10;
             bestPoint.MarkerShape = MarkerShape.FilledCircle;
             bestPoint.LineWidth = 0; // no line, just a point   
@@ -706,17 +707,15 @@ namespace SnakeGameAI {
             // Add text label slightly offset (to the top-right of the marker)
             string label = $"{calloutText}\nGen {pointIndex}\nVal {bestY:F2}";
             var infoText = formsPlot.Plot.Add.Text(label, bestX + xOffset, bestY + yOffset);
-            
+
             infoText.LabelBold = true;
             infoText.LabelFontSize = 16;
-            infoText.LabelFontColor = ScottColor.FromHex(AppColors.CoralPink.Hex);
-            infoText.LabelBackgroundColor = ScottColor.FromHex(AppColors.PeachCream.Hex);
+            infoText.LabelFontColor = ScottColor.FromHex(AppColors.PeachCream.Hex);
 
 
             // refresh plot
             formsPlot.Plot.Axes.AutoScale(); // optional depending on whether you want autoscale
             formsPlot.Refresh();
         }
-
     }
 }
