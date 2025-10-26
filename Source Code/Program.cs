@@ -21,7 +21,7 @@ namespace SnakeGameAI {
         ];
 
         public static Population population = new(populationSize, layerSizes);
-        public static LiveFitnessPlot liveFitnessPlot = new(population, 3);
+        public static LiveFitnessPlot liveFitnessPlot = new(population);
         public static AI_Debugger ai_Debugger = new();
         private static Game_UI game_UI = new();
         static Game game = new();
@@ -103,11 +103,11 @@ namespace SnakeGameAI {
         static void Main(string[] args) {
             TrainingLogger.Initialize();
 
-            Console.WriteLine("Starting the Game...");          
-            Console.WriteLine("===== SNAKE AI - NEURAL EVOLUTION =====");
-            Console.WriteLine($"Population: {populationSize} | Architecture: {string.Join("-", layerSizes)}");
-            Console.WriteLine($"Elite: 10% | Tournament: 7| Immigration: 5%");
-            Console.WriteLine("================================================\n");
+            TrainingLogger.Log("Starting the Game...");
+            TrainingLogger.Log("===== SNAKE AI - NEURAL EVOLUTION =====");
+            TrainingLogger.Log($"Population: {populationSize} | Architecture: {string.Join("-", layerSizes)}");
+            TrainingLogger.Log($"Elite: 10% | Tournament: 7| Immigration: 5%");
+            TrainingLogger.Log("================================================\n");
 
             Raylib.InitWindow((int)windowDim.X, (int)windowDim.Y, "AI Powered Retro Snake");
             Raylib.SetTargetFPS(60);
@@ -185,12 +185,18 @@ namespace SnakeGameAI {
             }
 
             if(population.Genomes.All(g => g.IsSnakeDead)) {
-                foreach(var genome in population.Genomes)
+                foreach(var genome in population.Genomes) {
                     genome.CalculateFitness();
-                population.UpdateBestEverGenome();
-                population.Evolve();
 
+                    TrainingLogger.LogGenomeDeath(
+                        genome,
+                        population.Generation,
+                        addedToBest: false
+                    );
+                }
+                population.UpdateBestEverGenome();
                 TrainingLogger.LogGeneration(population);
+                population.Evolve();
             }
 
             if(isGraphShowing) {
@@ -363,9 +369,9 @@ namespace SnakeGameAI {
         }
 
         public static void DebugGenome(Genome genome) {
-            int score = genome.IsSnakeDead ? genome.Game.updateScore : genome.Score;
+            int score = genome.IsSnakeDead ? genome.Game.cachedScore : genome.Score;
             string snake = genome.IsSnakeDead ? "Snake is Dead" : "Snake is Alive";
-            Console.WriteLine($"ID: {genome.GenomeID} | Score: {genome.Game.updateScore} | Fitness: {genome.Fitness} | {snake} | Score: {score}");
+            Console.WriteLine($"ID: {genome.GenomeID} | Score: {genome.Game.cachedScore} | Fitness: {genome.Fitness} | {snake} | Score: {score}");
         }
     }
 }

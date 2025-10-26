@@ -53,7 +53,7 @@ namespace SnakeGameAI {
                     continue;
 
                 var g = bestGenomes[i];
-                int score = g.IsSnakeDead ? g.Game.updateScore : g.Score;
+                int score = g.IsSnakeDead ? g.Game.cachedScore : g.Score;
                 string snake = g.IsSnakeDead ? "Snake is Dead" : " Snake is Alive";
 
                 // ⚡ OPTIMIZATION: Cached string interpolation
@@ -95,12 +95,10 @@ namespace SnakeGameAI {
         private Scatter scatterSmoothed = null!;
         private readonly Thread uiThread;
         private readonly Population population;
-        private readonly int smoothingWindow;
         private bool disposedValue;
 
-        public LiveFitnessPlot(Population population, int smoothingWindow = 5) {
+        public LiveFitnessPlot(Population population) {
             this.population = population ?? throw new ArgumentNullException(nameof(population));
-            this.smoothingWindow = Math.Max(1, smoothingWindow);
 
             uiThread = new Thread(() => {
                 var form = new Form {
@@ -173,7 +171,7 @@ namespace SnakeGameAI {
                     double[] ys = fitnessCopy.ToArray();
 
                     // Compute smoothed series
-                    var smoothed = MovingAverage(fitnessCopy, smoothingWindow);
+                    var smoothed = population.SmoothedFitnessHistory;
                     double[] ysSmooth = smoothed.ToArray();
 
                     // Average fitness history
@@ -223,29 +221,7 @@ namespace SnakeGameAI {
         }
 
         // ⚡ OPTIMIZATION: Efficient sliding-window moving average
-        private static List<double> MovingAverage(List<double> data, int window) {
-            var result = new List<double>(data.Count);
-            if(data == null || data.Count == 0)
-                return result;
-
-            if(window <= 1) {
-                result.AddRange(data);
-                return result;
-            }
-
-            double sum = 0.0;
-            var q = new Queue<double>();
-
-            foreach(var v in data) {
-                q.Enqueue(v);
-                sum += v;
-                if(q.Count > window)
-                    sum -= q.Dequeue();
-                result.Add(sum / q.Count);
-            }
-
-            return result;
-        }
+        
 
         protected virtual void Dispose(bool disposing) {
             if(!disposedValue) {

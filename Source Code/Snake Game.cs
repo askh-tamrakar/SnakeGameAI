@@ -42,6 +42,7 @@ namespace SnakeGameAI {
             }
 
             public int Score => Game.score;
+            public int CachedScore => Game.cachedScore;
             public int SnakeLength => Game.snake.body.Count;
             public bool HasFinalFitness { get; set; } = false;
             public bool IsSnakeDead => !Game.isRunning;
@@ -83,7 +84,7 @@ namespace SnakeGameAI {
                         isAddSegment = Game.snake.isAddSegment
                     },
                     score = Game.score,
-                    updateScore = Game.updateScore,
+                    cachedScore = Game.cachedScore,
                     isRunning = Game.isRunning
                 };
                 clonedGame.food.position = Game.food.position;
@@ -118,7 +119,7 @@ namespace SnakeGameAI {
                 // 🎯 === MAJOR REWARDS BONUSES ===
 
                 // 🍎 Base reward for eating
-                fitness += Game.updateScore * 100;
+                fitness += Game.cachedScore * 100;
 
                 // 🚀 Boost based on distance
                 if(Game.startDistanceToFood > 0 && Score > 0) {
@@ -286,7 +287,7 @@ namespace SnakeGameAI {
             public Snake snake = new Snake();
             public Food food;
             public int score = 0;
-            public int updateScore = 0;
+            public int cachedScore = 0;
             public int stepCap = 500;
             public int stepsSinceLastFood = 0;
             public int maxStepsWithoutFood = 200;
@@ -393,8 +394,7 @@ namespace SnakeGameAI {
                     snake.Update();
                     isRunning = true;
 
-                    int stepsLimit = Math.Min(maxStepsWithoutFood + (score * 8), stepCap);
-
+                    int stepsLimit = Math.Min(maxStepsWithoutFood +  10, stepCap);
                     CheckCollisionWithFood();
                     CheckCollisionWithEdges();
 
@@ -414,7 +414,7 @@ namespace SnakeGameAI {
                 food.position = GenerateRandomPos(snake.body);
                 isRunning = false;
                 stepsSinceLastFood = 0;
-                updateScore = score;
+                cachedScore = score;
                 score = 0;
             }
 

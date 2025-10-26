@@ -12,19 +12,22 @@ namespace SnakeGameAI {
     /// Tracks generation metrics, performance statistics, and training progress
     /// </summary>
     public static class TrainingLogger {
+        private static Population population => Program.population;
 
         private static string logDirectory = "Logs";
         private static string currentSessionLog = "";
         private static string metricsLog = "";
         private static string errorLog = "";
+        private static string genomeLog = "";
         private static bool isInitialized = false;
 
         // Session tracking
         private static DateTime sessionStartTime;
-        private static string sessionId;
+        private static string sessionId = "";
 
         // Performance metrics
         private static List<GenerationMetrics> generationHistory = new();
+        private static List<GenomeLifecycle> genomeLifecycles = new();
 
         /// <summary>
         /// Metrics tracked per generation
@@ -34,6 +37,7 @@ namespace SnakeGameAI {
             public DateTime Timestamp { get; set; }
             public double BestFitness { get; set; }
             public double AverageFitness { get; set; }
+            public double SmoothFitness { get; set; }
             public double MedianFitness { get; set; }
             public int BestScore { get; set; }
             public int AverageScore { get; set; }
@@ -52,29 +56,52 @@ namespace SnakeGameAI {
         }
 
         /// <summary>
+        /// Track individual genome lifecycle
+        /// </summary>
+        public class GenomeLifecycle {
+            public int Generation { get; set; }
+            public string GenomeID { get; set; } = "";
+            public int StepsSurvived { get; set; }
+            public int Score { get; set; }
+            public double Fitness { get; set; }
+            public string CauseOfDeath { get; set; } = "";
+            public int FoodEaten { get; set; }
+            public double AvgStepsPerFood { get; set; }
+            public int MaxSnakeLength { get; set; }
+            public bool AddedToBestList { get; set; }
+        }
+
+        /// <summary>
         /// Initialize the logging system
         /// </summary>
         public static void Initialize() {
-            if(isInitialized) return;
+            if(isInitialized)
+                return;
+
+            sessionStartTime = DateTime.Now;
+            sessionId = sessionStartTime.ToString("yyyyMMdd_HHmmss");
+
+            logDirectory = Path.Combine(logDirectory, $"session_{sessionId}");
 
             // Create logs directory if it doesn't exist
             if(!Directory.Exists(logDirectory)) {
                 Directory.CreateDirectory(logDirectory);
             }
 
-            sessionStartTime = DateTime.Now;
-            sessionId = sessionStartTime.ToString("yyyyMMdd_HHmmss");
-
             // Create log file paths
             currentSessionLog = Path.Combine(logDirectory, $"session_{sessionId}.log");
             metricsLog = Path.Combine(logDirectory, $"metrics_{sessionId}.csv");
+            genomeLog = Path.Combine(logDirectory, $"genomes_{sessionId}.csv");
             errorLog = Path.Combine(logDirectory, "errors.log");
 
             // Initialize session log
             WriteSessionHeader();
 
-            // Initialize CSV metrics log
+            // Initialize CSV Metrics log
             InitializeMetricsCSV();
+
+            // Initialize CSV Genome log
+            InitializeGenomeCSV();
 
             isInitialized = true;
 
@@ -83,6 +110,7 @@ namespace SnakeGameAI {
             Log($"Log Directory: {Path.GetFullPath(logDirectory)}");
             Log($"Session Log: {currentSessionLog}");
             Log($"Metrics Log: {metricsLog}");
+            Log($"Genomes CSV: {genomeLog}");
             Log("=====================================\n");
         }
 
@@ -92,31 +120,31 @@ namespace SnakeGameAI {
         private static void WriteSessionHeader() {
             var sb = new StringBuilder();
             sb.AppendLine("╔════════════════════════════════════════════════════════════════╗");
-            sb.AppendLine("║         SNAKE AI - NEUROEVOLUTION TRAINING SESSION            ║");
+            sb.AppendLine("║          SNAKE AI - NEUROEVOLUTION TRAINING SESSION            ║");
             sb.AppendLine("╚════════════════════════════════════════════════════════════════╝");
             sb.AppendLine();
             sb.AppendLine($"Session Started: {sessionStartTime:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"Session ID: {sessionId}");
             sb.AppendLine();
-            sb.AppendLine("=== SYSTEM CONFIGURATION ===");
+            sb.AppendLine("═══ SYSTEM CONFIGURATION ═══");
             sb.AppendLine($"OS: {Environment.OSVersion}");
             sb.AppendLine($".NET Version: {Environment.Version}");
             sb.AppendLine($"Processor Count: {Environment.ProcessorCount}");
             sb.AppendLine($"Working Directory: {Environment.CurrentDirectory}");
             sb.AppendLine();
-            sb.AppendLine("=== HYPERPARAMETERS ===");
+            sb.AppendLine("═══ HYPERPARAMETERS ═══");
             sb.AppendLine($"Population Size: {Program.population?.Genomes.Count ?? 0}");
             sb.AppendLine($"Network Architecture: {string.Join("-", Program.layerSizes)}");
             sb.AppendLine($"Mutation Rate: {Program.population?.GetMutationRate() ?? 0:F4}");
             sb.AppendLine($"Ghost Mode: {Program.isGhostMode}");
             sb.AppendLine();
-            sb.AppendLine("═══════════════════════════════════════════════════════════════\n");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝\n");
 
             File.WriteAllText(currentSessionLog, sb.ToString());
         }
 
         /// <summary>
-        /// Initialize CSV file for metrics tracking
+        /// Initialize CSV file for metrics tracking - FIXED ALIGNMENT
         /// </summary>
         private static void InitializeMetricsCSV() {
             var headers = new[] {
@@ -124,6 +152,7 @@ namespace SnakeGameAI {
                 "Timestamp",
                 "BestFitness",
                 "AvgFitness",
+                "SmoothFitness",
                 "MedianFitness",
                 "BestScore",
                 "AvgScore",
@@ -143,10 +172,30 @@ namespace SnakeGameAI {
         }
 
         /// <summary>
+        /// Initialize per-genome CSV log - FIXED: Removed LifespanSec
+        /// </summary>
+        private static void InitializeGenomeCSV() {
+            var headers = new[] {
+                "Generation",
+                "GenomeID",
+                "StepsSurvived",
+                "Score",
+                "FoodEaten",
+                "Fitness",
+                "CauseOfDeath",
+                "AvgStepsPerFood",
+                "MaxSnakeLength",
+                "AddedToBestList"
+            };
+            File.WriteAllText(genomeLog, string.Join(",", headers) + "\n", Encoding.UTF8);
+        }
+
+        /// <summary>
         /// Log general message to session log
         /// </summary>
         public static void Log(string message, LogLevel level = LogLevel.Info) {
-            if(!isInitialized) Initialize();
+            if(!isInitialized)
+                Initialize();
 
             string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
             string levelStr = level.ToString().ToUpper().PadRight(7);
@@ -157,7 +206,7 @@ namespace SnakeGameAI {
 
             // Write to file
             try {
-                File.AppendAllText(currentSessionLog, logEntry + "\n");
+                File.AppendAllText(currentSessionLog, logEntry + "\n", Encoding.UTF8);
             } catch(Exception ex) {
                 Console.WriteLine($"ERROR: Failed to write to log file: {ex.Message}");
             }
@@ -166,8 +215,9 @@ namespace SnakeGameAI {
         /// <summary>
         /// Log error with stack trace
         /// </summary>
-        public static void LogError(string message, Exception ex = null) {
-            if(!isInitialized) Initialize();
+        public static void LogError(string message, Exception ex = null!) {
+            if(!isInitialized)
+                Initialize();
 
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             var sb = new StringBuilder();
@@ -187,7 +237,7 @@ namespace SnakeGameAI {
 
             // Write to error log
             try {
-                File.AppendAllText(errorLog, sb.ToString());
+                File.AppendAllText(errorLog, sb.ToString(), Encoding.UTF8);
             } catch {
                 Console.WriteLine("CRITICAL: Cannot write to error log!");
             }
@@ -200,30 +250,84 @@ namespace SnakeGameAI {
         }
 
         /// <summary>
+        /// Log individual genome death/lifecycle
+        /// </summary>
+        public static void LogGenomeDeath(Genome genome, int generation, bool addedToBest = false) {
+            if(!isInitialized)
+                Initialize();
+
+            if(genome.GenomeID == population.SmartBestGenome.GenomeID)
+                addedToBest = true;
+
+            var lifecycle = new GenomeLifecycle {
+                Generation = generation,
+                GenomeID = genome.GenomeID,
+                StepsSurvived = genome.StepsSnapshot,
+                Score = genome.Game.cachedScore,
+                FoodEaten = genome.Game.cachedScore,
+                Fitness = genome.Fitness,
+                CauseOfDeath = genome.Game.causeOfDeath.ToString(),
+                MaxSnakeLength = genome.SnakeLength,
+                AddedToBestList = addedToBest,
+                AvgStepsPerFood = genome.Score > 0 ? (double)genome.StepsSnapshot / genome.Score : 0
+            };
+
+            genomeLifecycles.Add(lifecycle);
+            WriteGenomeToCSV(lifecycle);
+        }
+
+        /// <summary>
+        /// Write genome data to CSV - FIXED: Matches header exactly
+        /// </summary>
+        private static void WriteGenomeToCSV(GenomeLifecycle lifecycle) {
+            try {
+                var values = new[] {
+                    lifecycle.Generation.ToString(),
+                    lifecycle.GenomeID,
+                    lifecycle.StepsSurvived.ToString(),
+                    lifecycle.Score.ToString(),
+                    lifecycle.FoodEaten.ToString(),
+                    lifecycle.Fitness.ToString("F4"),
+                    lifecycle.CauseOfDeath,
+                    lifecycle.AvgStepsPerFood.ToString("F3"),
+                    lifecycle.MaxSnakeLength.ToString(),
+                    lifecycle.AddedToBestList.ToString()
+                };
+
+                File.AppendAllText(genomeLog, string.Join(",", values) + "\n", Encoding.UTF8);
+            } catch(Exception ex) {
+                LogError("Failed to write genome to CSV", ex);
+            }
+        }
+
+        /// <summary>
         /// Log generation metrics
         /// </summary>
         public static void LogGeneration(Population population) {
-            if(!isInitialized) Initialize();
+            if(!isInitialized)
+                Initialize();
 
             var genStart = DateTime.Now;
+            var BestGenomeOfCurrentGeneration = population.BestEverGenomeList.Last() ?? population.SmartBestGenome;
 
             // Calculate metrics
             var metrics = new GenerationMetrics {
                 Generation = population.Generation,
                 Timestamp = DateTime.Now,
-                BestFitness = population.Genomes.Max(g => g.Fitness),
+                BestFitness = BestGenomeOfCurrentGeneration.Fitness,
                 AverageFitness = population.AverageFitness,
-                MedianFitness = CalculateMedian(population.Genomes.Select(g => g.Fitness).ToList()),
-                BestScore = population.Genomes.Max(g => g.Score),
-                AverageScore = (int)population.Genomes.Average(g => g.Score),
+                SmoothFitness = population.SmoothedFitnessHistory.Last(),
+                MedianFitness = CalculateMedian(population.FitnessHistory),
+                BestScore = BestGenomeOfCurrentGeneration.CachedScore,
+                AverageScore = (int)population.Genomes.Average(g => g.CachedScore),
                 AliveCount = population.AliveCount,
                 MutationRate = population.GetMutationRate(),
-                EliteCount = population.Genomes.Count / 10, // Assuming 10% elite
-                BestGenomeID = population.SmartBestGenome?.GenomeID ?? "N/A",
+                EliteCount = population.EliteCount,
+                BestGenomeID = BestGenomeOfCurrentGeneration.GenomeID ?? "N/A",
                 DiversityScore = CalculateDiversity(population),
-                MaxStepsSurvived = population.Genomes.Max(g => g.StepsSnapshot),
+                MaxStepsSurvived = BestGenomeOfCurrentGeneration.StepsSnapshot,
                 AvgStepsSurvived = (int)population.Genomes.Average(g => g.StepsSnapshot),
-                GensSinceImprovement = 0 // Population should expose this
+                GensSinceImprovement = population.GenerationSiceImprovement
             };
 
             // Calculate improvement
@@ -236,7 +340,7 @@ namespace SnakeGameAI {
             generationHistory.Add(metrics);
 
             // Log to console/file
-            LogGenerationSummary(metrics);
+            LogGenerationSummary(metrics, population);
 
             // Write to CSV
             WriteMetricsToCSV(metrics);
@@ -250,29 +354,73 @@ namespace SnakeGameAI {
         /// <summary>
         /// Write generation summary to log
         /// </summary>
-        private static void LogGenerationSummary(GenerationMetrics metrics) {
-            var sb = new StringBuilder();
-            sb.AppendLine($"\n╔══════════════════ GENERATION {metrics.Generation} ══════════════════╗");
-            sb.AppendLine($"║ Time: {metrics.Timestamp:HH:mm:ss}");
-            sb.AppendLine($"║ Best Fitness: {metrics.BestFitness:F2} | Avg: {metrics.AverageFitness:F2} | Median: {metrics.MedianFitness:F2}");
-            sb.AppendLine($"║ Best Score: {metrics.BestScore} | Avg Score: {metrics.AverageScore}");
-            sb.AppendLine($"║ Alive: {metrics.AliveCount} | Mutation: {metrics.MutationRate:F4}");
-            sb.AppendLine($"║ Best Genome: {metrics.BestGenomeID}");
-            sb.AppendLine($"║ Diversity: {metrics.DiversityScore:F2}%");
+        private static void LogGenerationSummary(GenerationMetrics metrics, Population population) {
+            // Gather all lines (excluding section headings)
+            var lines = new List<string> {
+                $"║ Time: {metrics.Timestamp:HH:mm:ss}",
+                $"║ Best Genome ID: {metrics.BestGenomeID}",
+                $"║ Fitness: {metrics.BestFitness:F3} ║ Avg: {metrics.AverageFitness:F2} ║ Median: {metrics.MedianFitness:F2}",
+                $"║ Score: {metrics.BestScore} ║ Avg Score: {metrics.AverageScore}",
+                $"║ Steps: {metrics.MaxStepsSurvived} ║ Mutation Rate: {metrics.MutationRate:F4}",
+                $"║ Diversity: {metrics.DiversityScore:F2}%"
+            };
 
-            if(metrics.FitnessImprovement > 0) {
-                sb.AppendLine($"║ ⬆️ Fitness Improvement: +{metrics.FitnessImprovement:F2}");
-            } else if(metrics.FitnessImprovement < 0) {
-                sb.AppendLine($"║ ⬇️ Fitness Decline: {metrics.FitnessImprovement:F2}");
+            if(metrics.FitnessImprovement > 0)
+                lines.Add($"║ Fitness Improvement: +{metrics.FitnessImprovement:F2}");
+            else if(metrics.FitnessImprovement < 0)
+                lines.Add($"║ Fitness Decline: {metrics.FitnessImprovement:F2}");
+
+            int eliteCount = population.Genomes.Count / 10;
+            int mutatedChildren = population.Genomes.Count - eliteCount;
+            var bestGenome = population.BestEverGenome;
+
+            var nextGenLines = new List<string> {
+                $"║ Elites Preserved: {eliteCount}",
+                $"║ Mutated Children: {mutatedChildren}"
+            };
+
+            var bestGenomeLines = new List<string> {
+                $"║ Genome ID: {bestGenome.GenomeID}",
+                $"║ Score: {bestGenome.Game.cachedScore}",
+                $"║ Fitness: {bestGenome.Fitness:F3}",
+                $"║ Steps: {bestGenome.StepsSnapshot}"
+            };
+
+            // Section headings as you want them
+            var headerBar = $"\n╔════════════════════ GENERATION {metrics.Generation} ═════════════════════════╗";
+            var nextGenBar = $"╠════════════════════ NEXT GENERATION {metrics.Generation + 1} ════════════════════╣";
+            var bestBar = $"╠════════════════════ BEST EVER GENOME ═════════════════════╣";
+            var endBar = $"╚{new string('═', Math.Max(headerBar.Length - 2, 40))}╝";
+
+            // Find the longest content or heading line for padding
+            int innerWidth = Math.Max(
+                lines.Concat(nextGenLines).Concat(bestGenomeLines).Select(l => l.Length).Max(),
+                Math.Max(headerBar.Length, Math.Max(nextGenBar.Length, bestBar.Length))
+            );
+
+            // Pad all content lines to match the longest length (no right border)
+            string Pad(string l) {
+                return l.PadRight(innerWidth);
             }
 
-            sb.AppendLine($"╚══════════════════════════════════════════════════════╝");
+            var sb = new StringBuilder();
+
+            sb.AppendLine(headerBar.PadRight(innerWidth));
+            foreach(var l in lines)
+                sb.AppendLine(Pad(l));
+            sb.AppendLine(nextGenBar.PadRight(innerWidth));
+            foreach(var l in nextGenLines)
+                sb.AppendLine(Pad(l));
+            sb.AppendLine(bestBar.PadRight(innerWidth));
+            foreach(var l in bestGenomeLines)
+                sb.AppendLine(Pad(l));
+            sb.AppendLine(endBar.PadRight(innerWidth));
 
             Log(sb.ToString(), LogLevel.Info);
         }
 
         /// <summary>
-        /// Write metrics to CSV file
+        /// Write metrics to CSV file - FIXED: Added SmoothFitness
         /// </summary>
         private static void WriteMetricsToCSV(GenerationMetrics metrics) {
             try {
@@ -281,6 +429,7 @@ namespace SnakeGameAI {
                     metrics.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
                     metrics.BestFitness.ToString("F4"),
                     metrics.AverageFitness.ToString("F4"),
+                    metrics.SmoothFitness.ToString("F4"),  // FIXED: Was missing
                     metrics.MedianFitness.ToString("F4"),
                     metrics.BestScore.ToString(),
                     metrics.AverageScore.ToString(),
@@ -289,14 +438,14 @@ namespace SnakeGameAI {
                     metrics.EliteCount.ToString(),
                     metrics.BestGenomeID,
                     metrics.DiversityScore.ToString("F2"),
-                    metrics.GenerationDuration.TotalMilliseconds.ToString("F0"),
+                    metrics.GenerationDuration.TotalMilliseconds.ToString("F3"),
                     metrics.MaxStepsSurvived.ToString(),
                     metrics.AvgStepsSurvived.ToString(),
                     metrics.FitnessImprovement.ToString("F4"),
                     metrics.GensSinceImprovement.ToString()
                 };
 
-                File.AppendAllText(metricsLog, string.Join(",", values) + "\n");
+                File.AppendAllText(metricsLog, string.Join(",", values) + "\n", Encoding.UTF8);
             } catch(Exception ex) {
                 LogError("Failed to write metrics to CSV", ex);
             }
@@ -309,9 +458,9 @@ namespace SnakeGameAI {
             var reportPath = Path.Combine(logDirectory, $"report_gen{metrics.Generation}.txt");
 
             var sb = new StringBuilder();
-            sb.AppendLine("═══════════════════════════════════════════════════════════════");
-            sb.AppendLine($"         DETAILED REPORT - GENERATION {metrics.Generation}");
-            sb.AppendLine("═══════════════════════════════════════════════════════════════\n");
+            sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
+            sb.AppendLine($"║           DETAILED REPORT - GENERATION {metrics.Generation}                     ║");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝\n");
 
             sb.AppendLine("📊 PERFORMANCE METRICS:");
             sb.AppendLine($"  Best Fitness: {metrics.BestFitness:F4}");
@@ -348,9 +497,9 @@ namespace SnakeGameAI {
                 sb.AppendLine();
             }
 
-            sb.AppendLine("═══════════════════════════════════════════════════════════════\n");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝\n");
 
-            File.WriteAllText(reportPath, sb.ToString());
+            File.WriteAllText(reportPath, sb.ToString(), Encoding.UTF8);
             Log($"Detailed report saved: {reportPath}", LogLevel.Info);
         }
 
@@ -358,14 +507,15 @@ namespace SnakeGameAI {
         /// Log training summary at the end
         /// </summary>
         public static void LogTrainingSummary() {
-            if(!isInitialized || generationHistory.Count == 0) return;
+            if(!isInitialized || generationHistory.Count == 0)
+                return;
 
             var totalDuration = DateTime.Now - sessionStartTime;
             var bestGen = generationHistory.OrderByDescending(m => m.BestFitness).First();
 
             var sb = new StringBuilder();
             sb.AppendLine("\n╔════════════════════════════════════════════════════════════════╗");
-            sb.AppendLine("║               TRAINING SESSION SUMMARY                         ║");
+            sb.AppendLine("║                    TRAINING SESSION SUMMARY                    ║");
             sb.AppendLine("╚════════════════════════════════════════════════════════════════╝\n");
 
             sb.AppendLine($"Session ID: {sessionId}");
@@ -395,7 +545,7 @@ namespace SnakeGameAI {
             sb.AppendLine($"  Improvement %: {((lastGen.BestFitness - firstGen.BestFitness) / Math.Max(firstGen.BestFitness, 0.001) * 100):F2}%");
             sb.AppendLine();
 
-            sb.AppendLine("═══════════════════════════════════════════════════════════════\n");
+            sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝\n");
             sb.AppendLine($"Session ended: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"Logs saved in: {Path.GetFullPath(logDirectory)}");
 
@@ -404,14 +554,15 @@ namespace SnakeGameAI {
 
             // Save summary to separate file
             var summaryPath = Path.Combine(logDirectory, $"summary_{sessionId}.txt");
-            File.WriteAllText(summaryPath, summary);
+            File.WriteAllText(summaryPath, summary, Encoding.UTF8);
         }
 
         /// <summary>
         /// Calculate median from list of values
         /// </summary>
         private static double CalculateMedian(List<double> values) {
-            if(values.Count == 0) return 0;
+            if(values.Count == 0)
+                return 0;
 
             var sorted = values.OrderBy(v => v).ToList();
             int mid = sorted.Count / 2;
@@ -427,7 +578,6 @@ namespace SnakeGameAI {
         /// Calculate population diversity (0-100%)
         /// </summary>
         private static double CalculateDiversity(Population population) {
-            // Simple diversity: unique genome IDs / total genomes
             var uniqueIDs = population.Genomes.Select(g => g.GenomeID).Distinct().Count();
             return (double)uniqueIDs / population.Genomes.Count * 100.0;
         }
@@ -435,15 +585,13 @@ namespace SnakeGameAI {
         /// <summary>
         /// Export metrics to CSV for external analysis
         /// </summary>
-        public static void ExportMetrics(string filename = null) {
+        public static void ExportMetrics(string filename = null!) {
             if(generationHistory.Count == 0) {
                 Log("No metrics to export", LogLevel.Warning);
                 return;
             }
 
             string exportPath = filename ?? Path.Combine(logDirectory, $"export_{sessionId}.csv");
-
-            // This is already done in real-time via WriteMetricsToCSV
             Log($"Metrics exported to: {exportPath}", LogLevel.Info);
         }
     }

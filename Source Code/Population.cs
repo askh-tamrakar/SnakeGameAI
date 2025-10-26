@@ -25,6 +25,7 @@ namespace SnakeGameAI {
 
         private int generation = 0;
         private int eliteCount;
+        private int smmoothingWindow = 5;
 
         private double minMutationRate = 0.003d;  
         private double mutationRate = 0.02d;     
@@ -106,7 +107,7 @@ namespace SnakeGameAI {
             ApplyFitnessSharing(Genomes);
 
             Genomes = Genomes.OrderByDescending(g => g.Fitness)
-                             .ThenByDescending(g => g.Game.updateScore)
+                             .ThenByDescending(g => g.Game.cachedScore)
                              .ToList();
 
             eliteCount = Math.Max(1, Genomes.Count / EliteFraction);
@@ -130,10 +131,14 @@ namespace SnakeGameAI {
 
             while(newGen.Count < Genomes.Count) {
                 int tournamentSize = 8;
+
                 var parent1 = SelectParent(viableGenomes, tournamentSize);
                 var parent2 = SelectParent(viableGenomes, tournamentSize);
+
                 var child = Crossover(parent1, parent2, mutationRate);
+
                 int index = newGen.Count;
+
                 child.AssignID(Generation + 2561, index + 2744);
                 newGen.Add(child);
             }
@@ -144,7 +149,7 @@ namespace SnakeGameAI {
         public void EvolveBestEverGenomes() {
             BestEverGenomeList = BestEverGenomeList
                 .OrderByDescending(g => g.Fitness)
-                .ThenByDescending(g => g.Game.updateScore)
+                .ThenByDescending(g => g.Game.cachedScore)
                 .ToList();
 
             for(int i = 0; i < BestEverGenomeList.Count; i++) {
@@ -157,7 +162,7 @@ namespace SnakeGameAI {
         public void UpdateBestEverGenome(bool isManualUpdate = false) {
             Console.WriteLine($"Trying to add/update best genome...");
 
-            DeadGenomes = DeadGenomes.OrderByDescending(g => g.Game.updateScore)
+            DeadGenomes = DeadGenomes.OrderByDescending(g => g.Game.cachedScore)
                 .ThenByDescending(g => g.Fitness)
                 .ToList();
 
@@ -170,7 +175,7 @@ namespace SnakeGameAI {
             DeadGenomes.Clear();
 
             if(isManualUpdate) {
-                bestGenome.Game.updateScore = bestGenome.Score;
+                bestGenome.Game.cachedScore = bestGenome.Score;
                 bestGenome.CalculateFitness();
             }
 
@@ -190,6 +195,7 @@ namespace SnakeGameAI {
             }
 
             FitnessHistory.Add(bestGenome.Fitness);
+            SmoothedFitnessHistory = MovingAverage(FitnessHistory, smmoothingWindow);
             liveFitnessPlot.UpdatePlot();
 
             if(exists) {
@@ -201,10 +207,10 @@ namespace SnakeGameAI {
                 }
             } else {
                 BestEverGenomeList.Add(bestGenome.DeepClone());
-                Console.WriteLine($"[GEN {Generation}] Added new best genome: ID {bestGenome.GenomeID}, score {bestGenome.Game.updateScore}, fitness {bestGenome.Fitness:F2}");
+                Console.WriteLine($"[GEN {Generation}] Added new best genome: ID {bestGenome.GenomeID}, score {bestGenome.Game.cachedScore}, fitness {bestGenome.Fitness:F2}");
             }
 
-            ConsoleLog(bestGenome);
+            ConsoleLog();
             generation++;
         }
 
@@ -337,21 +343,31 @@ namespace SnakeGameAI {
             }
         }
 
-        public void ConsoleLog(Genome smartBestGenome) {
-            Console.WriteLine($"Elites preserved: {eliteCount}, Mutated children: {Genomes.Count - eliteCount}");
-            Console.WriteLine($"[GENERATION {generation}] |" +
-                $"Fitness: {smartBestGenome.Fitness:F10} | " +
-                $"Avg Fitness: {AverageFitness:F4} | " +
-                $"ID: {smartBestGenome.GenomeID} | " +
-                $"Score: {smartBestGenome.Game.updateScore}");
+        private static List<double> MovingAverage(List<double> data, int window) {
+            var result = new List<double>(data.Count);
+            if(data == null || data.Count == 0)
+                return result;
 
-            if(bestEverGenome != null) {
-                Console.WriteLine($"Best Ever Genome Till Now ==> " +
-                    $"ID: {bestEverGenome.GenomeID} | " +
-                    $"Fitness: {bestEverGenome.Fitness:F4} | " +
-                    $"Score: {bestEverGenome.Game.updateScore}");
+            if(window <= 1) {
+                result.AddRange(data);
+                return result;
             }
 
+            double sum = 0.0;
+            var queue = new Queue<double>();
+
+            foreach(var v in data) {
+                queue.Enqueue(v);
+                sum += v;
+                if(queue.Count > window)
+                    sum -= queue.Dequeue();
+                result.Add(sum / queue.Count);
+            }
+
+            return result;
+        }
+
+        public void ConsoleLog() {
             Console.WriteLine("=_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_=");
             Console.WriteLine();
         }
@@ -361,6 +377,9 @@ namespace SnakeGameAI {
             .ThenByDescending(g => g.Fitness)
             .First();
 
+        public Genome BestEverGenome => bestEverGenome;
+        public int GenerationSiceImprovement => gensSinceImprovement;
+        public int EliteCount => eliteCount;
         public double GetMutationRate() => mutationRate;
     }
 }

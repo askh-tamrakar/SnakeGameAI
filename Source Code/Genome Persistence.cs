@@ -103,7 +103,7 @@ namespace SnakeGameAI {
                 GenomeID = genome.GenomeID,
                 Fitness = genome.Fitness,
                 Score = genome.Score,
-                UpdateScore = genome.Game.updateScore,
+                UpdateScore = genome.Game.cachedScore,
                 StepsSnapshot = genome.StepsSnapshot,
                 LayerSizes = layerSizes,
                 Weights = neuralNetwork.GetAllWeights().Select(m => new MatrixDTO {
