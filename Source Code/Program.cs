@@ -101,6 +101,8 @@ namespace SnakeGameAI {
 
         [STAThread]
         static void Main(string[] args) {
+            TrainingLogger.Initialize();
+
             Console.WriteLine("Starting the Game...");          
             Console.WriteLine("===== SNAKE AI - NEURAL EVOLUTION =====");
             Console.WriteLine($"Population: {populationSize} | Architecture: {string.Join("-", layerSizes)}");
@@ -134,6 +136,7 @@ namespace SnakeGameAI {
                 Raylib.EndDrawing();
             }
 
+            TrainingLogger.LogTrainingSummary();
             Raylib.CloseWindow();
         }
 
@@ -170,7 +173,6 @@ namespace SnakeGameAI {
             Genome bestGenomeReference = population.SmartBestGenome;
             population.UpdateAllGenomes();
 
-            // ⚡ OPTIMIZATION: Replaced LINQ with for loop for better performance
             for(int i = 0; i < population.Genomes.Count; i++) {
                 var genome = population.Genomes[i];
                 if(!genome.IsSnakeDead)
@@ -187,6 +189,8 @@ namespace SnakeGameAI {
                     genome.CalculateFitness();
                 population.UpdateBestEverGenome();
                 population.Evolve();
+
+                TrainingLogger.LogGeneration(population);
             }
 
             if(isGraphShowing) {
@@ -355,17 +359,6 @@ namespace SnakeGameAI {
             if(Raylib.IsKeyDown(KeyboardKey.F9)) {
                 (population.Genomes, population.BestEverGenomeList) =
                     Genome_Persistence.LoadGenerationOrBestEverList(population, "Save States/Best Genomes.json");
-            }
-
-            // Manual evolution trigger
-            if(Raylib.IsKeyPressed(KeyboardKey.E)) {
-                if(population.Genomes.All(g => g.IsSnakeDead)) {
-                    population.DeadGenomes.AddRange(population.Genomes);
-                    population.UpdateBestEverGenome();
-                    population.Evolve();
-                    population.Generation++;
-                    Console.WriteLine($"\n=== GENERATION {population.Generation} ===\n");
-                }
             }
         }
 
