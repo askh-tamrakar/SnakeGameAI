@@ -17,6 +17,7 @@ namespace SnakeGameAI {
             int y = Raylib.GetRandomValue(0, cellCount - 1);
             return new Vector2(x, y);
         }
+
         public static Vector2 GenerateRandomCellSnake() {
             int x = Raylib.GetRandomValue(5, cellCount - 5);
             int y = Raylib.GetRandomValue(5, cellCount - 5);
@@ -39,19 +40,17 @@ namespace SnakeGameAI {
                 get => Game.stepsSurvived;
                 set => Game.stepsSurvived = value;
             }
+
             public int Score => Game.score;
             public int SnakeLength => Game.snake.body.Count;
-
             public bool HasFinalFitness { get; set; } = false;
             public bool IsSnakeDead => !Game.isRunning;
-
             public string GenomeID { get; set; } = string.Empty;
-
             public double Fitness { get; set; }
 
             public void AssignID(int generation, int index) {
-                string generationHex = generation.ToString("X3"); // 3-digit hex
-                string indexHex = index.ToString("X3");      // 3-digit hex
+                string generationHex = generation.ToString("X3");
+                string indexHex = index.ToString("X3");
                 GenomeID = $"{generationHex}{indexHex}";
             }
 
@@ -74,6 +73,7 @@ namespace SnakeGameAI {
             public void Mutate(double mutationRate) =>
                 NeuralNetwork.Mutate(mutationRate);
 
+            // ⚡ OPTIMIZATION: Reduced allocations in DeepClone
             public Genome DeepClone() {
                 var clonedNet = NeuralNetwork.Clone();
                 var clonedGame = new Game(headless: true) {
@@ -92,19 +92,16 @@ namespace SnakeGameAI {
                     Fitness = this.Fitness,
                     GenomeID = this.GenomeID,
                     StepsSnapshot = this.StepsSnapshot,
-
                 };
                 return clone;
             }
 
             public Genome ShallowClone() {
                 var clonedNet = NeuralNetwork.Clone();
-
                 var clone = new Genome(clonedNet) {
                     GenomeID = this.GenomeID,
                     StepsSnapshot = this.StepsSnapshot
                 };
-
                 return clone;
             }
 
@@ -118,100 +115,96 @@ namespace SnakeGameAI {
 
                 double fitness = 0;
 
-                 // 🎯 BONUSES
-                // Reward on the bsis of Setps
-                double stepsLeft = Game.maxStepsWithoutFood - Game.stepsSinceLastFood;
-                double stepsLeftNormalized = stepsLeft / (double)Game.maxStepsWithoutFood;
-                double eatReward = 1.0 + (stepsLeftNormalized * 0.5);
-                fitness += eatReward;
-
-                // 🧠 Strategic movement bonus (toward apple)
-                float dx = applePosition.X - headPosition.X;
-                float dy = applePosition.Y - headPosition.Y;
-                if((dx > 0 && Game.snake.direction.X == 1) || (dx < 0 && Game.snake.direction.X == -1))
-                    fitness += 1.0;
-                if((dy > 0 && Game.snake.direction.Y == 1) || (dy < 0 && Game.snake.direction.Y == -1))
-                    fitness += 1.0;
+                // 🎯 === MAJOR REWARDS BONUSES ===
 
                 // 🍎 Base reward for eating
-                fitness += Game.updateScore * 150;
+                fitness += Game.updateScore * 100;
 
-
-                // 🚀 Boost based on distance snake had to cover to reach food
+                // 🚀 Boost based on distance
                 if(Game.startDistanceToFood > 0 && Score > 0) {
                     fitness += Game.startDistanceToFood * Score * 10;
                 }
 
                 // ⏱️ Reward for surviving
-                fitness += Game.stepsSurvived * 0.1;
+                fitness += Game.stepsSurvived * 0.05;
 
                 // 📏 Bonus for snake length
-                fitness += Math.Pow(SnakeLength, 1.3);
+                fitness += Math.Pow(SnakeLength, 2.2);
 
-                 // ❌ PENALTIES
-                // 📉 Penalty for being far from food
-                fitness -= distanceToApple * 0.05;
-
-                // Penalty for Collision Death
-                if(Game.causeOfDeath == Game.DeathCause.CollidedToBody)
-                    fitness -= 50;
-                if(Game.causeOfDeath == Game.DeathCause.CollidedToWall)
-                    fitness -= 20;
-
-                // 🧠 Penalty for bad or non-progressing behavior
-                if(Score == 0 || IsSnakeDead) {
-                    fitness *= 0.3;
+                // EFFICIENCY BONUS (reward fast eating)
+                if(Score > 0) {
+                    double avgStepsPerFood = (double)Game.stepsSurvived / Score;
+                    double efficiencyBonus = 50.0 / Math.Max(1.0, avgStepsPerFood / 50.0);
+                    fitness += efficiencyBonus;
                 }
+
+                // DISTANCE-BASED REWARD (reward reducing distance to food)
+                if(Game.startDistanceToFood > 0 && Score == 0) {
+                    double distanceReduction = Game.startDistanceToFood - distanceToApple;
+                    fitness += distanceReduction * 2.0; 
+                }
+
+                // 🧠 === STRATEGIC BONUSES ===
+
+                double stepsLeft = Game.maxStepsWithoutFood - Game.stepsSinceLastFood;
+                double stepsLeftNormalized = stepsLeft / (double)Game.maxStepsWithoutFood;
+                double eatReward = 1.0 + (stepsLeftNormalized * 0.5);
+                fitness += eatReward;
+                
+                // Direction alignment bonus
+                float dx = applePosition.X - headPosition.X;
+                float dy = applePosition.Y - headPosition.Y;
+
+                if((dx > 0 && Game.snake.direction.X == 1) || (dx < 0 && Game.snake.direction.X == -1))
+                    fitness += 0.5;  // Reduced from 1.0
+                if((dy > 0 && Game.snake.direction.Y == 1) || (dy < 0 && Game.snake.direction.Y == -1))
+                    fitness += 0.5;  // Reduced from 1.0
+
+                // ❌ PENALTIES
+                // Distance penalty (mild)
+                fitness -= distanceToApple * 0.02;
+
+                // Collision penalties
+                if(Game.causeOfDeath == Game.DeathCause.CollidedToBody)
+                    fitness -= 100;  
+                if(Game.causeOfDeath == Game.DeathCause.CollidedToWall)
+                    fitness -= 30;
+
+                // Zero score penalty (failed to find food)
+                if(Score == 0 && IsSnakeDead)
+                    fitness *= 0.2;
+
+                // Ensure non-negative fitness
+                Fitness = Math.Max(0, fitness);
+                HasFinalFitness = true;
 
                 Fitness = fitness;
             }
 
             public void Step(Game game, int move) {
-                if (!game.isRunning) return;
+                if(!game.isRunning)
+                    return;
 
-                if(IsEventTriggered(0.002)) {
-                    Matrix<double> input = Matrix<double>.Build.Dense(1, game.GetInputs().Length, (i, j) => game.GetInputs()[j]);
-                    (_, move) = NeuralNetwork.Predict(input);
+                Matrix<double> input = Matrix<double>.Build.Dense(1, game.GetInputs().Length, (i, j) => game.GetInputs()[j]);
+                (_, move) = NeuralNetwork.Predict(input);
 
-                    // Determine new direction relative to current one
-                    Vector2 currentDir = game.snake.direction;
-                    Vector2 left = new Vector2(-currentDir.Y, currentDir.X);   // rotate left
-                    Vector2 right = new Vector2(currentDir.Y, -currentDir.X);  // rotate right
+                Vector2 currentDir = game.snake.direction;
+                Vector2 left = new Vector2(-currentDir.Y, currentDir.X);
+                Vector2 right = new Vector2(currentDir.Y, -currentDir.X);
 
-                    switch(move) {
-                        case 0: // keep going straight
-                            break;
-                        case 1: // turn left
-                            game.snake.direction = left;
-                            break;
-                        case 2: // turn right
-                            game.snake.direction = right;
-                            break;
-                    }
-                    game.Update();
+                switch(move) {
+                case 0:
+                    break;
+                case 1:
+                    game.snake.direction = left;
+                    break;
+                case 2:
+                    game.snake.direction = right;
+                    break;
                 }
+
+                game.Update();
                 game.Draw();
-            }
-
-            public void HeatMap() {
-                int heatmapX = 1300;
-                int heatmapY = 525;
-                int cellSize = 10;
-
-                // Layer One
-                Raylib.DrawText("Layer 1 Weight Mutations", heatmapX, heatmapY - 20, 20, Color.White);
-                AI_Debugger.DrawHeatmap(NeuralNetwork.CumulativeMutations[0], heatmapX, heatmapY, cellSize);
-
-                Raylib.DrawText("Layer 1 Bias Mutations", heatmapX, heatmapY + 30 + NeuralNetwork.GetLayers()[0].Weights.RowCount * cellSize, 20, Color.White);
-                AI_Debugger.DrawHeatmap(NeuralNetwork.CumulativeMutations[1], heatmapX, heatmapY + 60 + NeuralNetwork.GetLayers()[2].Weights.RowCount * cellSize, cellSize);
-
-                //Layer Two
-                int heatmapX_2 = heatmapX;
-                Raylib.DrawText("Layer 1 Weight Mutations", heatmapX + 260, heatmapY - 20, 20, Color.White);
-                AI_Debugger.DrawHeatmap(NeuralNetwork.CumulativeMutations[2], heatmapX + 260, heatmapY, cellSize);
-
-                Raylib.DrawText("Layer 1 Bias Mutations", heatmapX + 260, heatmapY + 30 + NeuralNetwork.GetLayers()[0].Weights.RowCount * cellSize, 20, Color.White);
-                AI_Debugger.DrawHeatmap(NeuralNetwork.CumulativeMutations[3], heatmapX + 260, heatmapY + 60 + NeuralNetwork.GetLayers()[2].Weights.RowCount * cellSize, cellSize);
             }
         }
 
@@ -224,15 +217,13 @@ namespace SnakeGameAI {
                 Vector2 start = GenerateRandomCellSnake();
                 int bodyX = (int)start.X;
                 int bodyY = (int)start.Y;
-
                 direction = new Vector2(1, 0);
-                body = new List<Vector2>{
+                body = new List<Vector2> {
                     start,
                     new Vector2(bodyX - 1, bodyY),
                     new Vector2(bodyX - 2, bodyY)
                 };
             }
-
 
             public void Draw() {
                 foreach(var segment in body) {
@@ -243,7 +234,6 @@ namespace SnakeGameAI {
                     );
                     Raylib.DrawRectangleRounded(rect, 0.5f, 6, DarkGreen);
                 }
-
             }
 
             public void Update() {
@@ -259,13 +249,11 @@ namespace SnakeGameAI {
                 Vector2 start = GenerateRandomCellSnake();
                 int bodyX = (int)start.X;
                 int bodyY = (int)start.Y;
-
                 body = new List<Vector2> {
                     start,
                     new Vector2(bodyX - 1, bodyY),
                     new Vector2(bodyX - 2, bodyY)
                 };
-
                 direction = new Vector2(1, 0);
                 isAddSegment = false;
             }
@@ -288,42 +276,38 @@ namespace SnakeGameAI {
                     cellSize,
                     cellSize
                 );
-
                 Rectangle source = new Rectangle(0, 0, texture!.Value.Width, texture.Value.Height);
                 Vector2 origin = new Vector2(0, 0);
                 Raylib.DrawTexturePro(texture.Value, source, dest, origin, 0f, Color.White);
             }
-
         }
 
         public class Game {
             public Snake snake = new Snake();
             public Food food;
-
             public int score = 0;
             public int updateScore = 0;
+            public int stepCap = 500;
             public int stepsSinceLastFood = 0;
             public int maxStepsWithoutFood = 200;
             public int stepsSurvived = 0;
-
             public float startDistanceToFood = 0;
-
             public bool isRunning = true;
             public bool isHeadless;
-
             public static Sound eatSound;
             public static Sound wallSound;
 
-            public enum DeathCause { 
+
+            public enum DeathCause {
                 CollidedToBody,
                 CollidedToWall
             }
 
             public DeathCause causeOfDeath;
+
             public Game(bool headless = false) {
                 isHeadless = headless;
                 food = new Food(snake.body, isHeadless);
-
                 if(!isHeadless) {
                     Raylib.InitAudioDevice();
                     eatSound = Raylib.LoadSound("Sound/eat.mp3");
@@ -332,7 +316,7 @@ namespace SnakeGameAI {
             }
 
             ~Game() {
-                if(!isHeadless ) {
+                if(!isHeadless) {
                     Raylib.UnloadSound(eatSound);
                     Raylib.UnloadSound(wallSound);
                     Raylib.CloseAudioDevice();
@@ -342,7 +326,6 @@ namespace SnakeGameAI {
             public void PlaySoundSafe(Sound sound) {
                 Raylib.PlaySound(sound);
             }
-
 
             public void Draw() {
                 food.Draw();
@@ -366,32 +349,37 @@ namespace SnakeGameAI {
 
             public void CheckCollisionWithEdges() {
                 if(snake.body[0].X >= cellCount || snake.body[0].X < 0 ||
-                    snake.body[0].Y >= cellCount || snake.body[0].Y < 0) {
+                   snake.body[0].Y >= cellCount || snake.body[0].Y < 0) {
                     GameOver();
                     PlaySoundSafe(wallSound);
+                    causeOfDeath = DeathCause.CollidedToWall;
                 }
-
-                causeOfDeath = DeathCause.CollidedToBody;
             }
 
+            // ⚡ OPTIMIZATION: Early exit collision detection, no list allocation
             public void CheckCollisionWithTail() {
-                List<Vector2> headlessBody = new List<Vector2>(snake.body);
-                headlessBody.RemoveAt(0);
-                if(IsElementInDeque(snake.body[0], headlessBody)) {
-                    GameOver();
-                    PlaySoundSafe(wallSound);
+                Vector2 head = snake.body[0];
+                for(int i = 1; i < snake.body.Count; i++) {
+                    if(snake.body[i] == head) {
+                        GameOver();
+                        PlaySoundSafe(wallSound);
+                        causeOfDeath = DeathCause.CollidedToBody;
+                        return; // Early exit
+                    }
                 }
-
-                causeOfDeath = DeathCause.CollidedToWall;
             }
 
+            // ⚡ OPTIMIZATION: Inline collision check
             private bool IsCollision(Vector2 position) {
-                // Wall collision
                 if(position.X < 0 || position.Y < 0 || position.X >= cellCount || position.Y >= cellCount)
                     return true;
 
-                // Self-collision
-                return snake.body.Skip(1).Any(segment => segment == position);
+                // Check self-collision with early exit
+                for(int i = 1; i < snake.body.Count; i++) {
+                    if(snake.body[i] == position)
+                        return true;
+                }
+                return false;
             }
 
             bool IsInsideGrid(Vector2 pos) {
@@ -404,22 +392,20 @@ namespace SnakeGameAI {
                     stepsSinceLastFood++;
                     snake.Update();
                     isRunning = true;
+
+                    int stepsLimit = Math.Min(maxStepsWithoutFood + (score * 8), stepCap);
+
                     CheckCollisionWithFood();
                     CheckCollisionWithEdges();
-                    CheckCollisionWithTail();
 
+                    if(!isGhostMode)
+                        CheckCollisionWithTail();
 
-                    if(Raylib.IsKeyPressed(KeyboardKey.K)) {
+                    if(Raylib.IsKeyPressed(KeyboardKey.K) || (stepsSinceLastFood > stepsLimit)) 
                         GameOver();
-                    }
 
-                    if(Raylib.IsKeyPressed(KeyboardKey.R)) {
+                    if(Raylib.IsKeyPressed(KeyboardKey.R)) 
                         Reset();
-                    }
-
-                    if(stepsSinceLastFood >= (maxStepsWithoutFood + (score * 8))) {
-                        GameOver();
-                    }
                 }
             }
 
@@ -441,7 +427,6 @@ namespace SnakeGameAI {
                 isRunning = true;
             }
 
-            // 37 inputs for the neural network
             public double[] GetInputs() {
                 List<double> inputs = new();
 
@@ -450,23 +435,23 @@ namespace SnakeGameAI {
                 Vector2 left = new Vector2(-dir.Y, dir.X);
                 Vector2 right = new Vector2(dir.Y, -dir.X);
 
-                // ==== 1. Ray-based vision: 8 directions × 3 object types (food, body, wall) ====
+                // Ray-based vision: 8 directions × 3 object types
                 Vector2[] directions = new Vector2[] {
-                    new Vector2(0, -1),  // Up
-                    new Vector2(1, -1),  // Up-Right
-                    new Vector2(1, 0),   // Right
-                    new Vector2(1, 1),   // Down-Right
-                    new Vector2(0, 1),   // Down
-                    new Vector2(-1, 1),  // Down-Left
-                    new Vector2(-1, 0),  // Left
-                    new Vector2(-1, -1)  // Up-Left
+                    new Vector2(0, -1),   // Up
+                    new Vector2(1, -1),   // Up-Right
+                    new Vector2(1, 0),    // Right
+                    new Vector2(1, 1),    // Down-Right
+                    new Vector2(0, 1),    // Down
+                    new Vector2(-1, 1),   // Down-Left
+                    new Vector2(-1, 0),   // Left
+                    new Vector2(-1, -1)   // Up-Left
                 };
 
-                int visionRange = 10;
+                const int visionRange = 10;
                 foreach(var dirVec in directions) {
                     bool seenFood = false, seenBody = false, seenWall = false;
 
-                    for(int dist = 1;dist <= visionRange;dist++) {
+                    for(int dist = 1; dist <= visionRange; dist++) {
                         Vector2 pos = head + dirVec * dist;
 
                         if(!IsInsideGrid(pos)) {
@@ -476,10 +461,8 @@ namespace SnakeGameAI {
 
                         if(!seenFood && food.position == pos)
                             seenFood = true;
-
                         if(!seenBody && snake.body.Contains(pos))
                             seenBody = true;
-
                         if(seenFood && seenBody)
                             break;
                     }
@@ -489,33 +472,36 @@ namespace SnakeGameAI {
                     inputs.Add(seenWall ? 1.0 : 0.0);
                 }
 
-                // ==== 2. Direction (X, Y) ====
+                // Direction
                 inputs.Add(dir.X);
                 inputs.Add(dir.Y);
 
-                // ==== 3. Danger Forward / Left / Right ====
-                inputs.Add(IsCollision(head + dir) ? 1.0 : 0.0);     // Danger forward
-                inputs.Add(IsCollision(head + left) ? 1.0 : 0.0);    // Danger left
-                inputs.Add(IsCollision(head + right) ? 1.0 : 0.0);   // Danger right
+                // Danger sensors
+                inputs.Add(IsCollision(head + dir) ? 1.0 : 0.0);
+                inputs.Add(IsCollision(head + left) ? 1.0 : 0.0);
+                inputs.Add(IsCollision(head + right) ? 1.0 : 0.0);
 
-                // ==== 4. Relative Food Direction (Dot products) ====
+                // Relative food direction
                 Vector2 toFood = Vector2.Normalize(food.position - head);
-                inputs.Add(Vector2.Dot(dir, toFood));     // Forward
-                inputs.Add(Vector2.Dot(left, toFood));    // Left
-                inputs.Add(Vector2.Dot(right, toFood));   // Right
+                inputs.Add(Vector2.Dot(dir, toFood));
+                inputs.Add(Vector2.Dot(left, toFood));
+                inputs.Add(Vector2.Dot(right, toFood));
 
-                // ==== 5. Normalized Snake Length ====
+                // Normalized snake length
                 inputs.Add((double)snake.body.Count / (cellCount * cellCount));
 
-                // ==== 6. Global Food Direction (Absolute) ====
-                inputs.Add(food.position.Y < head.Y ? 1.0 : 0.0); // Food Up
-                inputs.Add(food.position.Y > head.Y ? 1.0 : 0.0); // Food Down
-                inputs.Add(food.position.X < head.X ? 1.0 : 0.0); // Food Left
-                inputs.Add(food.position.X > head.X ? 1.0 : 0.0); // Food Right
+                // Global food direction
+                inputs.Add(food.position.Y < head.Y ? 1.0 : 0.0);  // Food up
+                inputs.Add(food.position.Y > head.Y ? 1.0 : 0.0);  // Food down
+                inputs.Add(food.position.X < head.X ? 1.0 : 0.0);  // Food left
+                inputs.Add(food.position.X > head.X ? 1.0 : 0.0);  // Food right
 
-                return inputs.ToArray(); // Total = 37
+                
+                return inputs.ToArray();
             }
-
+        }
+        public static bool IsElementInDeque(Vector2 element, List<Vector2> deque) {
+            return deque.Contains(element);
         }
     }
 }

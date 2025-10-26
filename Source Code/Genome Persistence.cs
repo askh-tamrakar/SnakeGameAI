@@ -8,13 +8,10 @@ namespace SnakeGameAI {
     public class GenomeDTO {
         public string GenomeID { get; set; } = "";
         public double Fitness { get; set; }
-
         public int Score { get; set; }
         public int UpdateScore { get; set; }
         public int StepsSnapshot { get; set; }
-
         public int[] LayerSizes { get; set; } = [];
-
         public List<MatrixDTO> Weights { get; set; } = [];
         public List<MatrixDTO> Biases { get; set; } = [];
     }
@@ -33,6 +30,11 @@ namespace SnakeGameAI {
     }
 
     public static class Genome_Persistence {
+        // ⚡ OPTIMIZATION: Static readonly JsonSerializerOptions for reuse
+        private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions {
+            WriteIndented = true
+        };
+
         // Saves BestEverGenomeList
         public static void SaveGenerationOrBestEverList(Population population, string path) {
             try {
@@ -40,7 +42,6 @@ namespace SnakeGameAI {
 
                 if(RL.IsKeyDown(KeyboardKey.LeftControl)) {
                     var dtoGenerationList = population.Genomes.Select(g => g.ToDTO()).ToList();
-
                     var saveWrapper = new SaveWrapper {
                         GenerationNumber = population.Generation,
                         FitnessHistory = population.FitnessHistory.ToList(),
@@ -48,67 +49,54 @@ namespace SnakeGameAI {
                         BestGenomeList = dtoBestGenomeList
                     };
 
-                    var json = JsonSerializer.Serialize(saveWrapper, new JsonSerializerOptions {
-                        WriteIndented = true
-                    });
-
+                    // ⚡ OPTIMIZATION: Reuse JsonOptions
+                    var json = JsonSerializer.Serialize(saveWrapper, JsonOptions);
                     File.WriteAllText("Save States/Generation.json", json);
-
+                    Console.WriteLine("✓ Saved Generation + Best Genomes");
                 } else {
-                    var json = JsonSerializer.Serialize(dtoBestGenomeList, new JsonSerializerOptions {
-                        WriteIndented = true
-                    });
+                    var json = JsonSerializer.Serialize(dtoBestGenomeList, JsonOptions);
                     File.WriteAllText(path, json);
+                    Console.WriteLine($"✓ Saved Best Genomes to {path}");
                 }
             } catch(Exception ex) {
-                Console.WriteLine("Save failed: " + ex.Message);
+                Console.WriteLine("❌ Save failed: " + ex.Message);
             }
         }
-         
-        public static (List<Genome> Generation, List<Genome> BestList)
-            LoadGenerationOrBestEverList(Population population, string path) {
 
+        public static (List<Genome> Generation, List<Genome> BestList)
+        LoadGenerationOrBestEverList(Population population, string path) {
             if(!File.Exists(path)) {
-                Console.WriteLine("Load failed: File does not exist.");
+                Console.WriteLine("❌ Load failed: File does not exist.");
                 return (new List<Genome>(), new List<Genome>());
             }
-
-            var json = File.ReadAllText("Save States/Generation.json");
 
             try {
+                var json = File.ReadAllText("Save States/Generation.json");
+
                 if(json.TrimStart().StartsWith("{")) {
                     var wrapper = JsonSerializer.Deserialize<SaveWrapper>(json);
-
                     var generation = wrapper?.Generation?.Select(dto => dto.ToGenome()).ToList() ?? [];
                     var bestList = wrapper?.BestGenomeList?.Select(dto => dto.ToGenome()).ToList() ?? [];
-
                     population.Generation = wrapper!.GenerationNumber;
                     population.FitnessHistory = wrapper.FitnessHistory;
-
-                    Console.WriteLine("Loaded Generation + BestList.");
+                    Console.WriteLine("✓ Loaded Generation + BestList.");
                     return (generation, bestList);
-
                 } else {
                     json = File.ReadAllText(path);
-
                     var dtoList = JsonSerializer.Deserialize<List<GenomeDTO>>(json);
                     var bestList = dtoList?.Select(dto => dto.ToGenome()).ToList() ?? [];
-                    
-                    Console.WriteLine("Loaded BestEver List.");
+                    Console.WriteLine("✓ Loaded BestEver List.");
                     return (new List<Genome>(), bestList);
                 }
-
             } catch(Exception ex) {
-                Console.WriteLine($"Load error: {ex.Message}");
+                Console.WriteLine($"❌ Load error: {ex.Message}");
                 return (new List<Genome>(), new List<Genome>());
             }
-
         }
 
-
+        // ⚡ OPTIMIZATION: Streamlined DTO conversion
         public static GenomeDTO ToDTO(this Genome genome) {
             var neuralNetwork = genome.NeuralNetwork;
-
             int[] layerSizes = Program.layerSizes;
 
             return new GenomeDTO {
@@ -117,15 +105,12 @@ namespace SnakeGameAI {
                 Score = genome.Score,
                 UpdateScore = genome.Game.updateScore,
                 StepsSnapshot = genome.StepsSnapshot,
-
                 LayerSizes = layerSizes,
-
                 Weights = neuralNetwork.GetAllWeights().Select(m => new MatrixDTO {
                     Rows = m.RowCount,
                     Columns = m.ColumnCount,
                     Data = m.ToColumnMajorArray().ToList()
                 }).ToList(),
-
                 Biases = neuralNetwork.GetAllBiases().Select(m => new MatrixDTO {
                     Rows = m.RowCount,
                     Columns = m.ColumnCount,
@@ -143,7 +128,6 @@ namespace SnakeGameAI {
 
             var weights = dto.Weights.Select(m =>
                 Matrix<double>.Build.Dense(m.Rows, m.Columns, m.Data.ToArray())).ToList();
-
             var biases = dto.Biases.Select(m =>
                 Matrix<double>.Build.Dense(m.Rows, m.Columns, m.Data.ToArray())).ToList();
 
@@ -151,15 +135,12 @@ namespace SnakeGameAI {
             var weightList = neuralNetwork.GetAllWeights();
             var biasesList = neuralNetwork.GetAllBiases();
 
-            for(int i = 0;i < weightList.Count;i++)
+            for(int i = 0; i < weightList.Count; i++)
                 weightList[i].SetSubMatrix(0, 0, weights[i]);
-
-            for(int i = 0;i < biasesList.Count;i++)
+            for(int i = 0; i < biasesList.Count; i++)
                 biasesList[i].SetSubMatrix(0, 0, biases[i]);
 
             return genome;
         }
-
-
     }
 }
