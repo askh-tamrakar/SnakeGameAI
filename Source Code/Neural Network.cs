@@ -129,9 +129,7 @@ namespace SnakeGameAI {
                             double adaptiveFactor = 1.0 / (1.0 + population.Generation / 100.0);
 
                             if(rand.NextDouble() < 0.90) {
-                                double freq = adaptiveFactor;
-                                double dynamicNoise = Math.Sin(freq * Math.PI / 100.0) * 0.05;
-                                mutationValue = Normal.Sample(0, dynamicNoise);
+                                mutationValue = Normal.Sample(0, adaptiveFactor);
                             } else {
                                 mutationValue = Cauchy.Sample(0, 0.5 * adaptiveFactor);
                             }
